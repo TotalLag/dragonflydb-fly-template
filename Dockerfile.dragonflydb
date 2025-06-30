@@ -1,0 +1,20 @@
+# Use the official DragonflyDB image as the base
+FROM docker.dragonflydb.io/dragonflydb/dragonfly
+
+# Expose the default DragonflyDB port
+EXPOSE 6379
+
+# Create data directory
+RUN mkdir -p /data
+
+# Command to run DragonflyDB with production settings
+# Remove cache_mode for production, add proper persistence and security
+CMD ["dragonfly", \
+     "--logtostderr", \
+     "--bind=0.0.0.0", \
+     "--port=6379", \
+     "--dir=/data", \
+     "--dbfilename=dump.rdb", \
+     "--save_schedule=*/10 * * * *", \
+     "--maxmemory=1gb", \
+     "--requirepass=${DRAGONFLY_PASSWORD:-changeme123}"]

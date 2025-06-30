@@ -1,0 +1,74 @@
+name: Production Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual triggers
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+  DRAGONFLYDB_APP_NAME: dragonflydb-instance
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Verify Fly.io authentication
+        run: flyctl auth whoami
+
+      - name: Set production secrets for DragonflyDB
+        run: |
+          flyctl secrets set \
+            DRAGONFLY_PASSWORD="${{ secrets.DRAGONFLY_PASSWORD }}" \
+            -a ${{ env.DRAGONFLYDB_APP_NAME }}
+        env:
+          DRAGONFLY_PASSWORD: ${{ secrets.DRAGONFLY_PASSWORD }}
+
+      - name: Deploy DragonflyDB
+        run: |
+          flyctl deploy \
+            -c fly.toml.dragonflydb \
+            --app ${{ env.DRAGONFLYDB_APP_NAME }} \
+            --remote-only \
+            --wait-timeout 300
+
+      - name: Wait for DragonflyDB to be healthy
+        run: |
+          echo "Waiting for DragonflyDB to be ready..."
+          sleep 30
+          flyctl status -a ${{ env.DRAGONFLYDB_APP_NAME }}
+
+
+      - name: Verify deployment health
+        run: |
+          echo "Checking DragonflyDB health..."
+          flyctl status -a ${{ env.DRAGONFLYDB_APP_NAME }}
+          
+
+      - name: Run smoke tests
+        run: |
+          echo "Running basic connectivity tests..."
+          # Add your smoke tests here
+          echo "Deployment completed successfully!"
+
+  notify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify deployment status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+            exit 1
+          fi
