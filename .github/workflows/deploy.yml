@@ -1,4 +1,4 @@
-name: Production Deployment
+name: Production Deployment V2
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch: # Allow manual triggers
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -16,8 +16,8 @@ env:
 
 jobs:
   deploy:
+    name: Deploy to Fly.io
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,108 +25,29 @@ jobs:
       - name: Setup flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Verify Fly.io authentication
-        run: flyctl auth whoami > /dev/null 2>&1
-
-      - name: Clear any existing machine leases
-        run: |
-          echo "Clearing machine leases..."
-          flyctl machine leases clear -a ${{ env.DRAGONFLYDB_APP_NAME }} > /dev/null 2>&1 || true
-        continue-on-error: true
-
       - name: Set production secrets
         run: |
-          # Retry logic for setting secrets
-          max_attempts=3
-          attempt=1
-          
-          while [ $attempt -le $max_attempts ]; do
-            echo "Setting secrets attempt $attempt/$max_attempts..."
-            
-            if flyctl secrets set \
-              DRAGONFLY_PASSWORD="${{ secrets.DRAGONFLY_PASSWORD }}" \
-              -a ${{ env.DRAGONFLYDB_APP_NAME }} \
-              --stage > /dev/null 2>&1; then
-              echo "✅ Secrets configured"
-              break
-            else
-              echo "❌ Attempt $attempt failed"
-              if [ $attempt -eq $max_attempts ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              
-              echo "Retrying in 30 seconds..."
-              sleep 30
-              attempt=$((attempt + 1))
-            fi
-          done
-        env:
-          DRAGONFLY_PASSWORD: ${{ secrets.DRAGONFLY_PASSWORD }}
-
-      - name: Deploy staged secrets
-        run: |
-          echo "Deploying secrets..."
-          flyctl secrets deploy -a ${{ env.DRAGONFLYDB_APP_NAME }}
-
+          flyctl secrets set \
+            DRAGONFLY_PASSWORD="${{ secrets.DRAGONFLY_PASSWORD }}" \
+            -a ${{ env.DRAGONFLYDB_APP_NAME }} \
+            --stage
       - name: Deploy application
         run: |
-          echo "Starting deployment..."
-          
-          # Check if machines exist
-          MACHINE_COUNT=$(flyctl machine list -a ${{ env.DRAGONFLYDB_APP_NAME }} --json 2>/dev/null | jq length || echo "0")
-          
-          if [ "$MACHINE_COUNT" -gt 0 ]; then
-            echo "Existing machines found ($MACHINE_COUNT). Updating existing deployment..."
-            flyctl deploy \
-              -c fly.toml.dragonflydb \
-              --app ${{ env.DRAGONFLYDB_APP_NAME }} \
-              --remote-only \
-              --update-only \
-              --wait-timeout 300 \
-              --lease-timeout 30s \
-              --detach > /dev/null 2>&1
-          else
-            echo "No existing machines found. Creating fresh deployment..."
-            flyctl deploy \
-              -c fly.toml.dragonflydb \
-              --app ${{ env.DRAGONFLYDB_APP_NAME }} \
-              --remote-only \
-              --wait-timeout 300 \
-              --lease-timeout 30s \
-              --detach > /dev/null 2>&1
-          fi
-          
-          echo "✅ Deployment initiated"
-
-      - name: Wait for deployment readiness
-        run: |
-          echo "Waiting for deployment to stabilize..."
-          sleep 30
-          
-          # Check machine leases status (suppress output)
-          echo "Checking system status..."
-          flyctl machine leases view -a ${{ env.DRAGONFLYDB_APP_NAME }} > /dev/null 2>&1 || true
-          
-          # Check app status (suppress output)
-          flyctl status -a ${{ env.DRAGONFLYDB_APP_NAME }} > /dev/null 2>&1
-
-      - name: Verify deployment health
-        run: |
-          echo "Performing health checks..."
-          flyctl status -a ${{ env.DRAGONFLYDB_APP_NAME }} > /dev/null 2>&1
-          
-          # Additional health checks (suppress output)
-          flyctl machine list -a ${{ env.DRAGONFLYDB_APP_NAME }} > /dev/null 2>&1
-          echo "✅ Health checks completed"
-
+          flyctl deploy \
+            -c fly.toml.dragonflydb \
+            --app ${{ env.DRAGONFLYDB_APP_NAME }} \
+            --remote-only \
+            --wait-timeout 600
+      
       - name: Run smoke tests
         run: |
           echo "Running connectivity tests..."
-          # Add your smoke tests here
+          sudo apt-get update && sudo apt-get install -y redis-tools
+          redis-cli -u "redis://:${{ secrets.DRAGONFLY_PASSWORD }}@${{ env.DRAGONFLYDB_APP_NAME }}.fly.dev:6379" PING
           echo "✅ Deployment completed successfully"
 
   notify:
+    name: Notify on deployment status
     needs: deploy
     runs-on: ubuntu-latest
     if: always()
