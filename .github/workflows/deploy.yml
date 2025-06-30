@@ -67,18 +67,36 @@ jobs:
       - name: Deploy staged secrets
         run: |
           echo "Deploying secrets..."
-          flyctl secrets deploy -a ${{ env.DRAGONFLYDB_APP_NAME }} --detach > /dev/null 2>&1
+          flyctl secrets deploy -a ${{ env.DRAGONFLYDB_APP_NAME }}
 
       - name: Deploy application
         run: |
           echo "Starting deployment..."
-          flyctl deploy \
-            -c fly.toml.dragonflydb \
-            --app ${{ env.DRAGONFLYDB_APP_NAME }} \
-            --remote-only \
-            --wait-timeout 300 \
-            --lease-timeout 30s \
-            --detach > /dev/null 2>&1
+          
+          # Check if machines exist
+          MACHINE_COUNT=$(flyctl machine list -a ${{ env.DRAGONFLYDB_APP_NAME }} --json 2>/dev/null | jq length || echo "0")
+          
+          if [ "$MACHINE_COUNT" -gt 0 ]; then
+            echo "Existing machines found ($MACHINE_COUNT). Updating existing deployment..."
+            flyctl deploy \
+              -c fly.toml.dragonflydb \
+              --app ${{ env.DRAGONFLYDB_APP_NAME }} \
+              --remote-only \
+              --update-only \
+              --wait-timeout 300 \
+              --lease-timeout 30s \
+              --detach > /dev/null 2>&1
+          else
+            echo "No existing machines found. Creating fresh deployment..."
+            flyctl deploy \
+              -c fly.toml.dragonflydb \
+              --app ${{ env.DRAGONFLYDB_APP_NAME }} \
+              --remote-only \
+              --wait-timeout 300 \
+              --lease-timeout 30s \
+              --detach > /dev/null 2>&1
+          fi
+          
           echo "✅ Deployment initiated"
 
       - name: Wait for deployment readiness

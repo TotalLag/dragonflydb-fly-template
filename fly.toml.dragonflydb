@@ -1,4 +1,4 @@
-app = "dragonflydb-example" # Replace with your desired app name
+# app name is provided via deployment workflow
 primary_region = "ord" # Choose a region close to your users
 
 [build]
@@ -6,36 +6,39 @@ dockerfile = "Dockerfile.dragonflydb"
 
 [env]
   DRAGONFLY_PASSWORD = "changeme123" # Change this in production!
+  LOG_LEVEL = "info"
 
 [mounts]
 source = "dragonfly_data" # Name of your Fly Volume
 destination = "/data"     # Path inside the container where data is stored
 
-[http_service]
-  internal_port = 6379 # Default Redis port
-  force_https = false
-  auto_stop_machines = "stop"
+# TCP service configuration for database
+[[services]]
+  protocol = "tcp"
+  internal_port = 6379
+  auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 0 # Key for scaling to zero
-  [http_service.concurrency]
-    type = "requests"
-    soft_limit = 100
+  min_machines_running = 0
 
-# Production-ready health checks
-[checks]
-  [checks.redis_ping]
+  [[services.ports]]
     port = 6379
-    type = "tcp"
-    interval = "15s"
-    timeout = "5s"
-    grace_period = "10s"
+
+  # Connection limits for database
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 1000
+    soft_limit = 800
+
 
 # VM configuration for better performance
 [[vm]]
-  size = "shared-cpu-2x"
+  size = "shared-cpu-1x"
   memory = "2gb"
 
 # Restart policy for better reliability
 [[restart]]
   policy = "on-failure"
   max_restarts = 3
+
+[deploy]
+  strategy = "rolling"
