@@ -7,12 +7,9 @@ EXPOSE 6379
 # Create data directory
 RUN mkdir -p /data
 
-# Command to run DragonflyDB with production settings
-CMD dragonfly \
-    --logtostderr \
-    --bind=0.0.0.0 \
-    --dir=/data \
-    --dbfilename=dump \
-    --snapshot_cron="*/10 * * * *" \
-    --maxmemory=1gb \
-    --requirepass=${DRAGONFLY_PASSWORD:-changeme123}
+# Copy the entrypoint script and make it executable
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Set the entrypoint script as the command to run
+ENTRYPOINT ["/entrypoint.sh"]
