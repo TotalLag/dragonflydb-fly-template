@@ -38,31 +38,16 @@ jobs:
             --remote-only \
             --wait-timeout 600
       
-      - name: Setup Redis CLI cache
-        id: cache-redis-cli
-        uses: actions/cache@v4
-        with:
-          path: ~/.redis-cli-cache
-          key: ${{ runner.os }}-redis-cli-v1
-      
-      - name: Install Redis CLI if not cached
-        if: steps.cache-redis-cli.outputs.cache-hit != 'true'
+      - name: Setup Redis CLI
         run: |
-          echo "Cache miss - installing redis-tools..."
+          echo "Installing redis-tools..."
           sudo apt-get update && sudo apt-get install -y redis-tools
-          mkdir -p ~/.redis-cli-cache
-          cp $(which redis-cli) ~/.redis-cli-cache/
       
       - name: Run smoke tests
         run: |
           echo "Running connectivity tests..."
-          # Use cached redis-cli if available, otherwise use system one
-          if [ -f ~/.redis-cli-cache/redis-cli ]; then
-            chmod +x ~/.redis-cli-cache/redis-cli
-            ~/.redis-cli-cache/redis-cli -u "redis://default:${{ secrets.DRAGONFLY_PASSWORD }}@${{ env.DRAGONFLYDB_APP_NAME }}.fly.dev:6379" PING
-          else
-            redis-cli -u "redis://default:${{ secrets.DRAGONFLY_PASSWORD }}@${{ env.DRAGONFLYDB_APP_NAME }}.fly.dev:6379" PING
-          fi
+          # Use system redis-cli which has all dependencies properly installed
+          redis-cli -u "redis://default:${{ secrets.DRAGONFLY_PASSWORD }}@${{ env.DRAGONFLYDB_APP_NAME }}.fly.dev:6379" PING
           echo "✅ Deployment completed successfully"
 
   notify:
