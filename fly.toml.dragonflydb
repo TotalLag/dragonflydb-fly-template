@@ -35,8 +35,8 @@ destination = "/data"     # Path inside the container where data is stored
 
 # VM configuration for better performance
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "2gb"
+  size = "shared-cpu-2x"
+  memory = "512mb"
 
 # Restart policy for better reliability
 [[restart]]
