@@ -1,5 +1,5 @@
 # app name is provided via deployment workflow
-primary_region = "ord" # Choose a region close to your users
+primary_region = "dfw" # Choose a region close to your users
 
 [build]
 dockerfile = "Dockerfile.dragonflydb"
@@ -15,7 +15,7 @@ destination = "/data"     # Path inside the container where data is stored
 [[services]]
   protocol = "tcp"
   internal_port = 6379
-  auto_stop_machines = true
+  auto_stop_machines = "stop"
   auto_start_machines = true
   min_machines_running = 0
 
@@ -35,8 +35,8 @@ destination = "/data"     # Path inside the container where data is stored
 
 # VM configuration for better performance
 [[vm]]
-  size = "shared-cpu-2x"
-  memory = "512mb"
+  size = "shared-cpu-1x"
+  memory = "256mb"
 
 # Restart policy for better reliability
 [[restart]]
