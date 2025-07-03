@@ -16,7 +16,7 @@ fi
 # This is important for proper signal handling (e.g., for shutdowns).
 exec dragonfly \
     --logtostderr \
-    --bind=0.0.0.0 \
+    --bind=::0 \
     --dir=/data \
     --dbfilename=dump \
     --snapshot_cron='*/10 * * * *' \
