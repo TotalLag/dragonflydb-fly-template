@@ -20,5 +20,5 @@ exec dragonfly \
     --dir=/data \
     --dbfilename=dump \
     --snapshot_cron='*/10 * * * *' \
-    --maxmemory=1gb \
+    --maxmemory=256mb \
     --requirepass="$DRAGONFLY_PASSWORD"
