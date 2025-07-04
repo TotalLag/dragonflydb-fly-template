@@ -29,6 +29,10 @@ jobs:
         run: |
           flyctl secrets set \
             DRAGONFLY_PASSWORD="${{ secrets.DRAGONFLY_PASSWORD }}" \
+            S3_BUCKET_NAME="${{ secrets.S3_BUCKET_NAME }}" \
+            AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            S3_ENDPOINT="${{ secrets.S3_ENDPOINT }}" \
             -a ${{ env.DRAGONFLYDB_APP_NAME }}
       - name: Deploy application
         run: |

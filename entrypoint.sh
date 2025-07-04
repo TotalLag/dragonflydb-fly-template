@@ -17,8 +17,9 @@ fi
 exec dragonfly \
     --logtostderr \
     --bind=::0 \
-    --dir=/data \
+    --dir=s3://${S3_BUCKET_NAME}/dragonfly-backups/ \
+    --s3_endpoint=${S3_ENDPOINT} \
     --dbfilename=dump \
-    --snapshot_cron='*/10 * * * *' \
+    --snapshot_cron='*/15 * * * *' \
     --maxmemory=256mb \
     --requirepass="$DRAGONFLY_PASSWORD"
