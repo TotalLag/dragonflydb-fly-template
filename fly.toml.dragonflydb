@@ -47,3 +47,7 @@ destination = "/data"     # Path inside the container where data is stored
   # Use the 'rolling' strategy to ensure the volume can be reattached.
   # 'bluegreen' is not suitable for single-instance stateful services.
   strategy = "rolling"
+
+[metrics]
+  port = 6379
+  path = "/metrics"
